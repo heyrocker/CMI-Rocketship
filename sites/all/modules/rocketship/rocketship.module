@@ -8,12 +8,12 @@
 /**
  * All issues should be tagged with this tag.
  */
-define('ROCKETSHIP_MASTER_TAG', 'D8MI');
+define('ROCKETSHIP_MASTER_TAG', 'Configuration%20system');
 
 /**
  * Lead username. Skipped when computing contributors.
  */
-define('ROCKETSHIP_LEAD_USER', 'Gábor Hojtsy');
+define('ROCKETSHIP_LEAD_USER', 'Greg Dunlap');
 
 /**
  * Local node type for storing the cached issues.
@@ -28,7 +28,7 @@ define('ROCKETSHIP_NODE_TYPE', 'issue');
 /**
  * Vocabulary ID for the local issue tags vocabulary.
  */
-define('ROCKETSHIP_TAGS_VID', 6);
+define('ROCKETSHIP_TAGS_VID', 1);
 
 /**
  * Implements hook_menu().
