@@ -1,0 +1,614 @@
+<?php
+
+/**
+ * @file
+ * Issue crawler/scraper and display module built for the Drupal 8 Multilingual Initiative.
+ */
+
+/**
+ * All issues should be tagged with this tag.
+ */
+define('ROCKETSHIP_MASTER_TAG', 'D8MI');
+
+/**
+ * Lead username. Skipped when computing contributors.
+ */
+define('ROCKETSHIP_LEAD_USER', 'Gábor Hojtsy');
+
+/**
+ * Local node type for storing the cached issues.
+ *
+ * Assumptions about this node type:
+ * - it has a regular title and body
+ * - it has a field_assigned single value, one line text field
+ * - it has a tags reference field named "field_issue_tags" using tags from ROCKETSHIP_TAGS_VID
+ */
+define('ROCKETSHIP_NODE_TYPE', 'issue');
+
+/**
+ * Vocabulary ID for the local issue tags vocabulary.
+ */
+define('ROCKETSHIP_TAGS_VID', 6);
+
+/**
+ * Implements hook_menu().
+ */
+function rocketship_menu() {
+  // Quick and dirty menu item to invoke local cache refresh.
+  $items['admin/rocketship'] = array(
+    'title' => 'Rocketship',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('rocketship_launch_form'),
+    'access arguments' => array('access administration pages'),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function rocketship_cron() {
+  // An hour should pass at least inbetween local cache refreshes.
+  if (variable_get('rocketship_parse_time', 0) < time()-60*60) {
+    rocketship_parse_all();
+    variable_set('rocketship_parse_time', time());
+  }
+}
+
+/**
+ * Form callback for launching a manual rocketship refresh.
+ */
+function rocketship_launch_form() {
+  $form['launch'] = array(
+    '#type' => 'submit',
+    '#value' => t('Re-parse rocketship data'),
+    '#description' => t('Refresh local cached information of rocketship nodes.'),
+  );
+  return $form;
+}
+
+/**
+ * Form submission callback for rocketship launch.
+ */
+function rocketship_launch_form_submit() {
+  rocketship_parse_all();
+}
+
+/**
+ * Crawler for drupal.org issue listings.
+ */
+function rocketship_parse_all() {
+  // Grab the first page of the listings of issues for this tag.
+  $issue_page = 'http://drupal.org/project/issues/search/drupal?issue_tags=' . ROCKETSHIP_MASTER_TAG;
+  $page_output = drupal_http_request($issue_page);
+  if ($page_output->code == 200 && !empty($page_output->data)) {
+
+    // Figure out the index number of the last issue list page by scraping.
+    $last_page_num = 0;
+    if (preg_match('!href="([^"]+)" title="Go to last page"!', $page_output->data, $last_page)) {
+  	  if (preg_match('!\?page=(\d+)&!', $last_page[1], $last_page_find)) {
+        $last_page_num = $last_page_find[1];
+      }
+    }
+
+    // Parse this page for issue links and grab those issue nodes.
+    rocketship_parse_issue_page($page_output->data);
+
+    // If we have more pages, go on to the rest of the pages as well.
+    if (!empty($last_page_num)) {
+      for ($page_num = 1; $page_num <= $last_page_num; $page_num++) {
+        $page_output = drupal_http_request($issue_page . '&page='. $page_num);
+        if ($page_output->code == 200 && !empty($page_output->data)) {
+          rocketship_parse_issue_page($page_output->data);
+        }
+      }
+    }
+  }
+
+  // Save all username counts.
+  list ($user_names, $user_uids, $recent_uids) = rocketship_stat_add_username();
+  variable_set('rocketship_participant_stats', $user_names);
+  variable_set('rocketship_participant_uids', $user_uids);
+  variable_set('rocketship_participant_recent', $recent_uids);
+
+  // Make note of the data update in watchdog().
+  watchdog('rocketship', 'Rocketship data updated.');
+}
+
+/**
+ * Simple stat collector to summarize users participating.
+ */
+function rocketship_stat_add_username($username = NULL, $uid = NULL, $time = NULL) {
+  static $user_names = array();
+  static $user_uids = array();
+  static $recent_uids = array();
+
+  if (isset($username)) {
+    @$user_names[$username]++;
+    @$user_uids[$username] = $uid;
+    // Consider this a recent user if the time of activity was within 2 weeks.
+    if ($time > (REQUEST_TIME - (14 * 24 * 60 * 60)) && !in_array($uid, $recent_uids)) {
+      @$recent_uids[] = $uid;
+    }
+  }
+  return array($user_names, $user_uids, $recent_uids);
+}
+
+/**
+ * Data scraper for a drupal.org issue listing page.
+ *
+ * @todo
+ *   Does not drop outdated nodes (if master tag is removed), only updates old
+ *   ones and create new ones. Also does not drop unused tags.
+ * @todo
+ *  Does not consider multi-page issues. Yeah.
+ */
+function rocketship_parse_issue_page(&$issue_page_content) {
+
+  // Issue links are contained in table cells on the page.
+  // <td class="views-field views-field-title">
+  // <a href="/node/851362">Add hash column to {locales_source} to query faster locale strings</a>
+  if (preg_match_all('!<td class="views-field views-field-title">[^<]*<a href="/node/(\d+)">!', $issue_page_content, $matches)) {
+    foreach($matches[1] as $match) {
+
+      // Load the concrete issue page for this issue (anonymously). This might
+      // be cached by drupal.org, but we are already putting some load on d.o
+      // so its fine to get the cached data here.
+      $issue_node = drupal_http_request('http://drupal.org/node/' . (int) $match);
+      if ($issue_node->code == 200 && !empty($issue_node->data)) {
+        // Issue nodes on the local site are cached with the "#12345: title"
+        // pattern, where 12345 is the issue nid from drupal.org and "title" is
+        // the issue title from drupal.org. Since all that stays the same for
+        // a drupal.org is the issue number, we look for that specifically.
+        $nid = db_query("SELECT nid FROM {node} WHERE type = :type AND title LIKE '#" . (int) $match . ":%'", array(':type' => ROCKETSHIP_NODE_TYPE))->fetchField();
+        if ($nid) {
+          $node = node_load($nid);
+        }
+        else {
+          // Save nodes as published. Although this would "litter" your tracker
+          // and other listings of nodes, taxonomy index data is only stored for
+          // published nodes, so this is what we can do to get easy results
+          // quickly.
+          $node = (object) array('type' => ROCKETSHIP_NODE_TYPE, 'language' => 'und', 'status' => 1);
+        }
+
+        // Grab node title based on drupal.org HTML markup.
+        if (preg_match('!<h1 id="page-subtitle">([^<]+)</h1>!', $issue_node->data, $page_title)) {
+          $node->title = '#'. (int) $match . ': '. htmlspecialchars_decode($page_title[1], ENT_QUOTES);
+        }
+
+        // Grab time created based on the markup.
+        if (preg_match('!<div class="submitted">Posted by <a [^<]+</a> on <em>(.+)</em></div>!', $issue_node->data, $posted_date)) {
+          $node->created = strtotime(str_replace(' at ', ', ', $posted_date[1]));
+        }
+
+        // Find all participats and count their comments.
+        if (preg_match_all('!<div class="submitted">Posted by <a href="/user/(\d+)"[^>]+>([^<]+)</a> on <em>(.+)</em>!', $issue_node->data, $participants)) {
+          foreach ($participants[2] as $i => $participant) {
+            rocketship_stat_add_username($participant, $participants[1][$i], strtotime(str_replace(' at ', ', ', $participants[3][$i])));
+          }
+        }
+
+        // Assumes a "field_assigned" text field is present on this node type.
+        if (preg_match('!<td>Assigned:</td><td>(.*)</td>!', $issue_node->data, $assigned)) {
+          $node->field_assigned['und'][0]['value'] = strip_tags($assigned[1]);
+        }
+
+        // Store all kinds of metadata as plain tags on this node. We can then
+        // do listings based on the presence of these tags "easily".
+        $tags = array();
+        if (preg_match('!<td>Version:</td><td>(.*)</td>!', $issue_node->data, $tag)) {
+          $tags[] = $tag[1];
+        }
+        if (preg_match('!<td>Category:</td><td>(.*)</td>!', $issue_node->data, $tag)) {
+          $tags[] = $tag[1];
+        }
+        if (preg_match('!<td>Priority:</td><td>(.*)</td>!', $issue_node->data, $tag)) {
+          $tags[] = $tag[1];
+        }
+        if (preg_match('!<td>Status:</td><td>(.*)</td>!', $issue_node->data, $tag)) {
+          // "Decode" for "reviewed & tested by the community".
+          $tags[] = str_replace('&amp;', '&', $tag[1]);
+        }
+        if (preg_match('!<td>Issue tags:</td><td>(.*)</td>!', $issue_node->data, $tag)) {
+          if (preg_match_all('!>([^<]+)</a>!', $tag[1], $more_tags)) {
+            foreach ($more_tags[1] as $tag) {
+              $tags[] = $tag;
+            }
+          }
+        }
+
+        // Now try and find existing tags with matching names if present or
+        // create the new tags if needed.
+        $node->field_issue_tags['und'] = array();
+        foreach($tags as $tag) {
+          // This is an ugly pattern but there might be multiple matching
+          // terms, so we need to find the one matching in our vocabulary.
+          $matching_terms = taxonomy_get_term_by_name($tag);
+          if (!empty($matching_terms)) {
+            foreach ($matching_terms as $term) {
+              if ($term->vid == ROCKETSHIP_TAGS_VID) {
+                $node->field_issue_tags['und'][] = array('tid' => $term->tid);
+              }
+            }
+          }
+          else {
+            // Not found, so create a new tag and assign.
+            $term = (object) array(
+              'vid' => ROCKETSHIP_TAGS_VID,
+              'name' => $tag,
+            );
+            taxonomy_term_save($term);
+            $node->field_issue_tags['und'][] = array('tid' => $term->tid);
+          }
+        }
+
+        // Save our updated / created node.
+        node_save($node);
+      }
+    }
+  }
+}
+
+/**
+ * Display controlled for nodes.
+ *
+ * This assumes nodes where we want to display a list of issues have a
+ * "field_issue_tag_display" single value taxonomy term reference field,
+ * which designates the tag that we want to dive into (from all the)
+ * issues that we gathered. This can be equal to ROCKETSHIP_MASTER_TAG
+ * if we want a list of all locally cached issues.
+ *
+ * The primary goal here is to group the issues in sensible groups and
+ * display them by their group to help produce a visual overview.
+ */
+function rocketship_node_view($node, $view_mode, $langcode) {
+  if (!empty($node->field_issue_tag_display['und'])) {
+
+    // Get more info on the term we are presenting this list for.
+    $tid_for_list = $node->field_issue_tag_display['und'][0]['tid'];
+    $term_for_list = taxonomy_term_load($tid_for_list);
+
+    // Get all the issue nodes that have the tag we need.
+    $nids = db_query('SELECT nid FROM {taxonomy_index} WHERE tid = :tid', array(':tid' => $tid_for_list))->fetchAll();
+
+    // Look up a cached version for this term if we have it and
+    // it is not yet expired (no newer nodes of the issue type
+    // available yet).
+    if ($cache = cache_get('rocketship:' . $tid_for_list)) {
+      $last_issue_update = db_query("SELECT changed FROM {node} WHERE type = :type ORDER BY created DESC", array(':type' => ROCKETSHIP_NODE_TYPE))->fetchField();
+      if ($cache->created > $last_issue_update) {
+        $node->content['rocketship_issues'] = array(
+          '#markup' => $cache->data,
+          // Place at the end of the page after book navigation (if present).
+          '#weight' => 200,
+        );
+        return;
+      }
+    }
+
+    // Now come some tricky wrangly of the data. We want to display
+    // two 3-column tables. The first one is the primary overview
+    // with the second more informal about issues we are not currently
+    // focusing on.
+    $tables = array(
+      1 => t('Currently in the works for Drupal 8'),
+      2 => t('Other related issues'),
+    );
+
+    // The columns for these two tables are intermingled here to make
+    // term matching simpler without complicated conditions. We achieve
+    // categorization without complex conditions by prioritizing the
+    // placement of issues in categories with their tags.
+    $columns = array(
+      // Need this first so that we catch the backport patches first and then
+      // the rest can sort itself based on simpler tag lookups.
+      t('Backport') => array(array('patch (to be ported)', '6.x-dev', '7.x-dev'), 2),
+      t('To do') => array(array('active', 'needs work'), 1),
+      t('To review') => array(array('needs review'), 1),
+      t('To be committed') => array(array('reviewed & tested by the community'), 1),
+      t('Postponed') => array(array('postponed', 'postponed (maintainer needs more info)'), 2),
+      t('Closed') => array(array('fixed', 'closed (duplicate)', "closed (won't fix)", 'closed (works as designed)', 'closed (cannot reproduce)', 'closed (fixed)'), 2),
+    );
+
+    // Some trickery to replace the term names in the $columns array
+    // with term ids for easier lookup later and collect a list of
+    // all those term IDs for later matching.
+    $status_tids = array();
+    foreach ($columns as $name => &$terms) {
+      foreach ($terms[0] as &$term_name) {
+        if ($matching_terms = taxonomy_get_term_by_name($term_name)) {
+          foreach ($matching_terms as $term) {
+            if ($term->vid == ROCKETSHIP_TAGS_VID) {
+              // Replace term name in $columns with term ID (the variable
+              // is taken by reference, so we directly modify the arary here).
+              $term_name = $term->tid;
+              // Collect a complete list of all status tids.
+              $status_tids[] = $term->tid;
+              break;
+            }
+          }
+        }
+        else {
+          // This might happen if we never had issues with the given status tag,
+          // so we don't have the status tag created yet. In this case, we should
+          // ignore this tag for now.
+          $term_name = 0;
+        }
+      }
+    }
+
+    // Now load the nodes we found for the page tag and categorize into
+    // the groups defined by terms in $columns.
+    $nodes = array();
+    foreach($nids as $nid) {
+      $issue_node = node_load($nid->nid);
+      // Tags on the issue node should be referenced in field_issue_tags[].
+      if (!empty($issue_node->field_issue_tags['und'])) {
+        foreach ($issue_node->field_issue_tags['und'] as $tag_info) {
+          if (in_array($tag_info['tid'], $status_tids)) {
+            // If this was a status tid, look at which group it is in,
+            // in which case we found where to categorize the node.
+            foreach ($columns as $title => $status_map) {
+              if (in_array($tag_info['tid'], $status_map[0])) {
+                // Save the whole node object categorized under the $columns
+                // $title for this column and move two levels up to the next
+                // node.
+                $nodes[$title][] = $issue_node;
+                break 2;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Now sort the $nodes array into two tables and fill in the table
+    // headers and cells appropriately.
+    $header_data = array();
+    $table_data = array();
+    foreach ($columns as $header => $columns_data) {
+      // Sort nodes by "priority" defined by current focus as most important and
+      // then major and critical being slightly less important and then the rest.
+      $cell = array(-10 => '', -7 => '', -5 => '', 0 => '');
+      if (!empty($nodes[$header])) {
+        foreach ($nodes[$header] as $issue_node) {
+          $classes = 'rocketship-node';
+          $cell_terms = '';
+          $priority = 0;
+          foreach ($issue_node->field_issue_tags['und'] as $tag_info) {
+            $term = taxonomy_term_load($tag_info['tid']);
+            $term_class = 'rocketship-term';
+            switch($term->name) {
+              // Style the needs tests tag specially.
+              // @todo: this has some more potential, think about it.
+              case 'Needs tests':
+                $term_class .= ' rocketship-needs-tests';
+                break;
+              // Mark issues with major and critical status.
+              case 'major':
+                $classes .= ' rocketship-major';
+                $priority = min(-5, $priority);
+                break;
+              case 'critical':
+                $classes .= ' rocketship-critical';
+                $priority = min(-7, $priority);
+                break;
+              // Use the "sprint" tag to mark issues for current focus.
+              case 'sprint':
+                $classes .= ' rocketship-focus';
+                $priority = min(-10, $priority);
+                break;
+            }
+            // Remove tags that are "trivial" in this listing. The master tag
+            // is always trivial, the tool focuses on 8.x issues, so those
+            // not having that tag should be assumed to be 8.x, RTBC and
+            // needs review issues are in their respective column, so that is
+            // already represented, and the current page tag is presented on
+            // the page, so again no need to repeat it on all nodes (it is not
+            // a distinguishing factor).
+            if (!in_array($term->name, array(ROCKETSHIP_MASTER_TAG, 'reviewed & tested by the community', 'needs review', '8.x-dev', $term_for_list->name))) {
+              // Add up all terms with their respective tags.
+              $cell_terms .= '<span class="'. $term_class . '">'. check_plain($term->name) .'</span>';
+            }
+          }
+
+          // Add rocketship-normal class for easier styling.
+          if ($priority == 0) {
+            $classes .= ' rocketship-normal';
+          }
+
+          // Link to drupal.org node for this issue.
+          $drupalorg_nid = preg_replace('!#(\d+):(.*)$!', '\1', $issue_node->title);
+          $cell[$priority] .= '<div class="' . $classes . '">'. l($issue_node->title, 'http://drupal.org/node/'. $drupalorg_nid) .'<br />';
+          $cell[$priority] .= $cell_terms;
+          if (!empty($issue_node->field_assigned['und'][0]['value']) && $issue_node->field_assigned['und'][0]['value'] != 'Unassigned') {
+            $cell[$priority] .= '<div class="assigned">' . t('Assigned to @assigned', array('@assigned' => $issue_node->field_assigned['und'][0]['value'])) . "</div>";
+          }
+          $cell[$priority] .= '</div>';
+        }
+      }
+
+      // Store this cell and header in the right table. Each table will only
+      // have one cell per column (which might not look nice), but it gets us
+      // to the best display results. For purity's sake we might want to
+      // rebuild this based on a three column layout, that is what we
+      // accomplish with the tables basically.
+      $table_data[$columns_data[1]][] = join('', $cell);
+      $header_data[$columns_data[1]][] = $header;
+    }
+
+    // Styling and some usabiltiy improvement JS included inline. This is indeed
+    // very ugly but is quickly accessible for development and can be refactored
+    // later.
+    $output .= <<<STYLE
+<div class="rocketship-issues">
+<script>
+// UX: Extend click from rocketship-node container to the link inside.
+// I know this looks ugly. It is a quick stop-gap, tips welcome.
+jQuery(document).ready(function($) {
+  $('.rocketship-node').click(function() {
+    var link = $(this).find('a');
+    if (link.length) {
+      window.location = link.attr('href');
+    }
+  });
+});
+</script>
+<style>
+  .rocketship-issues table {
+    width: 100%;
+  }
+  .rocketship-issues table tr.odd {
+    background-color: #FFFFFF;
+  }
+  .rocketship-issues table tr td {
+    vertical-align: top;
+    width: 33%;
+  }
+  .rocketship-node {
+    margin-bottom: 1em;
+    border-radius: 5px;
+    padding: 3px 5px 3px 8px;
+    -moz-box-shadow:0px 0px 6px rgba(0,0,0,0.4);
+    -webkit-box-shadow:0px 0px 6px rgba(0,0,0,0.4);
+    border-left-width: 8px;
+    border-left-color: transparent;
+    border-left-style: solid;
+    border-left-color: #F5F5F5;
+  }
+  .rocketship-node a {
+    font-weight: bold;
+  }
+  .rocketship-focus {
+    border-left-color: #336699;
+  }
+  .rocketship-major {
+    border-left-color: #FF9900;
+  }
+  .rocketship-critical {
+    border-left-color: #FF0000;
+  }
+  .rocketship-term {
+    background-color: #F5F5F5;
+    margin: 2px 6px 2px 0;
+    display: inline-block;
+    border-radius: 3px;
+    font-size: 0.8em;
+    padding: 1px 3px;
+  }
+  .rocketship-needs-tests {
+    font-weight: bold;
+  }
+  .rocketship-legend {
+    float: right;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 0.8em;
+    margin-top: 0.2em;
+  }
+  .rocketship-legend div {
+    display: inline-block;
+    margin-left: 2px;
+  }
+  .rocketship-node .assigned {
+    background-color: #F5F5F5;
+    margin: 3px -5px 3px -8px;
+    padding: 1px 8px;
+    border-top: 1px dotted #DDDDDD;
+  }
+  .rocketship-cloud-wrapper {
+    border-bottom: 1px solid #2d2d2d;
+    border-top: 1px solid #2d2d2d;
+    margin-bottom: 2em;
+  }
+  .rocketship-cloud-wrapper p {
+    font-size: 0.8em;
+    margin-top: 1.3em;
+    font-style: italic;
+  }
+  .rocketship-cloud {
+    line-height: 1.3em;
+    text-align: justify;
+  }
+  .rocketship-cloud-1 {
+    font-size: 0.8em;
+  }
+  .rocketship-cloud-2 {
+    font-size: 1em;
+  }
+  .rocketship-cloud-3 {
+    font-size: 1.4em;
+  }
+  .rocketship-cloud-4 {
+    font-size: 1.6em;
+  }
+  .rocketship-cloud-5 {
+    font-size: 1.8em;
+  }
+  .rocketship-cloud-6 {
+    font-size: 2em;
+  }
+  .rocketship-cloud-recent a {
+    font-weight: bold;
+  }
+</style>
+STYLE;
+
+    // Produce a short legend to be included with each table.
+    $legend = '<div class="rocketship-legend">Legend: <div class="rocketship-critical rocketship-node">Critical issue</div> <div class="rocketship-major rocketship-node">Major issue</div> <div class="rocketship-focus rocketship-node">Current top priority</div></div>';
+    foreach($tables as $num => $title) {
+      // Lead the table with a legend.
+      $output .= $legend . '<h3>'. $title .'</h3>';
+      // Link to drupal.org issue list for the same issue overview. Reassures
+      // users that there is no special data showcased here, they can still
+      // access all this on drupal.org.
+      $issue_list_url = 'http://drupal.org/project/issues/search/drupal?issue_tags=' . urlencode($term_for_list->name) . ($term_for_list->name == ROCKETSHIP_MASTER_TAG ? '' : '%2C+' . ROCKETSHIP_MASTER_TAG . '&issue_tags_op=and');
+      $output .= '<p style="clear: both;">See all these issues also at <a href="' . check_plain($issue_list_url) . '">' .check_plain($issue_list_url) . '</a>. This view of issues is automatically cached and might be out of date up to two hours at times.</p>';
+      // Theme the respective table.
+      $output .= theme('table', array('header' => $header_data[$num], 'rows' => array($table_data[$num])));
+    }
+    $output .= '</div>';
+
+    // Include username cloud if the master tag is displayed.
+    $participant_stats = variable_get('rocketship_participant_stats', array());
+    if ($term_for_list->name == ROCKETSHIP_MASTER_TAG && !empty($participant_stats)) {
+      $participant_uids = variable_get('rocketship_participant_uids', array());
+      $participant_recent = variable_get('rocketship_participant_recent', array());
+
+      // Remove lead user and some users to avoid skewing the stats.
+      unset($participant_stats[ROCKETSHIP_LEAD_USER]);
+      unset($participant_stats['System Message']);
+      unset($participant_stats['Abandoned Projects']);
+
+      $usercloud = array();
+      $max = max(array_values($participant_stats));
+      $steps = array(1, 2, 3, 5, 7, 10);
+      foreach ($steps as $i => $step) {
+        foreach ($participant_stats as $name => $count) {
+          if (($step == 10) || ($count <= $step * ($max/10))) {
+            $class = 'rocketship-cloud-' . ($i+1);
+            if (in_array($participant_uids[$name], $participant_recent)) {
+              $class .= ' rocketship-cloud-recent';
+            }
+            $usercloud[$name] = '<span class="' . $class . '"><a href="http://drupal.org/user/' . $participant_uids[$name] . '">' . check_plain($name) . '</a></span>';
+            unset($participant_stats[$name]);
+          }
+        }
+      }
+      // Sort by username in a case insensitive fashion.
+      uksort($usercloud, "strnatcasecmp");
+      $note = '<p>' . t('Based on participation in @tag issues (font size) using a quasi-logarithmic scale and on recent activity (boldness). Excludes the initiative lead, @lead.', array('@tag' => ROCKETSHIP_MASTER_TAG, '@lead' => ROCKETSHIP_LEAD_USER)) . '</p>';
+      $output .= '<div class="rocketship-cloud-wrapper" id="thanks"><h3>' . t('Thanks to') . ' <a href="#thanks">#</a></h3>' . '<div class="rocketship-cloud">' . join(' ', $usercloud) . '</div>' . $note . '</div>';
+    }
+
+    // Save the generated page section in the rocketship cache.
+    cache_set('rocketship:' . $tid_for_list, $output);
+    watchdog('rocketship', 'Rocketship cache miss.');
+
+    $node->content['rocketship_issues'] = array(
+      '#markup' => $output,
+      // Place at the end of the page after book navigation (if present).
+      '#weight' => 200,
+    );
+  }
+}
