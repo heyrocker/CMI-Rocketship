@@ -46,19 +46,20 @@ function cmi_rocketship_flag_default_flags() {
 /**
  * Implements hook_views_api().
  */
-function va_profiles_views_api() {
+function cmi_rocketship_views_api() {
   return array(
     'api' => 2,
-    'path' => drupal_get_path('module', 'va_profiles') . '/includes/views',
+    'path' => drupal_get_path('module', 'cmi_rocketship') . '/includes/views',
   );
 }
 
 /**
  * Implements hook_views_default_views().
  */
-function va_profiles_views_default_views() {
+function cmi_rocketship_views_default_views() {
   // Search the "views" directory for files ending in .view.inc.
-  $files = file_scan_directory(drupal_get_path('module', 'va_profiles') . '/includes/views', '/view.inc$/');
+  $files = file_scan_directory(drupal_get_path('module', 'cmi_rocketship') . '/includes/views', '/view.inc$/');
+  watchdog('rocketship', print_r($files, TRUE));
   foreach ($files as $absolute => $file) {
     // This is not require_once because it's possible that
     // hook_views_default_views() gets called more than once.
