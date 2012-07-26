@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Rocketship Feature feature.
+ */
+
+include_once 'rocketship_feature.features.inc';
