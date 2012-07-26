@@ -145,6 +145,7 @@ function rocketship_feature_field_default_fields() {
       'required' => FALSE,
       'settings' => array(
         'alt_field' => TRUE,
+        'default_image' => 0,
         'file_directory' => 'field/image',
         'file_extensions' => 'png gif jpg jpeg',
         'max_filesize' => '',
