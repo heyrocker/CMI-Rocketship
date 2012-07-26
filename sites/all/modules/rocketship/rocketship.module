@@ -149,6 +149,7 @@ function rocketship_parse_issue_page(&$issue_page_content) {
   // <td class="views-field views-field-title">
   // <a href="/node/851362">Add hash column to {locales_source} to query faster locale strings</a>
   if (preg_match_all('!<td class="views-field views-field-title">[^<]*<a href="/node/(\d+)">!', $issue_page_content, $matches)) {
+    // $match is the remote node id
     foreach($matches[1] as $match) {
 
       // Load the concrete issue page for this issue (anonymously). This might
