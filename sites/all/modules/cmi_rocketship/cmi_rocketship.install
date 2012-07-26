@@ -1,8 +1,0 @@
-<?php
-
-/**
- * Implements hook_install().
- */
-function cmi_rocketship_install() {
-
-}
