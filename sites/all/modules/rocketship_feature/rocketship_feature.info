@@ -40,3 +40,4 @@ features[variable][] = node_submitted_issue
 features[variable][] = node_submitted_page
 features[variable][] = site_frontpage
 features[variable][] = site_name
+features[variable][] = theme_sky_settings
