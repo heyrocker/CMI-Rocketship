@@ -49,10 +49,10 @@ function rocketship_menu() {
  */
 function rocketship_cron() {
   // An hour should pass at least inbetween local cache refreshes.
-  if (variable_get('rocketship_parse_time', 0) < time()-60*60) {
+//  if (variable_get('rocketship_parse_time', 0) < time()-60*60) {
     rocketship_parse_all();
-    variable_set('rocketship_parse_time', time());
-  }
+//    variable_set('rocketship_parse_time', time());
+//  }
 }
 
 /**
@@ -189,6 +189,10 @@ function rocketship_parse_issue_page(&$issue_page_content) {
             rocketship_stat_add_username($participant, $participants[1][$i], strtotime(str_replace(' at ', ', ', $participants[3][$i])));
           }
         }
+
+        // Save the issue nid, this is useful for creating direct links to
+        // issues later.
+        $node->field_nid['und'][0]['value'] = $match;
 
         // Assumes a "field_assigned" text field is present on this node type.
         if (preg_match('!<td>Assigned:</td><td>(.*)</td>!', $issue_node->data, $assigned)) {
