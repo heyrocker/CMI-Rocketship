@@ -503,7 +503,7 @@ function rocketship_feature_field_default_fields() {
       ),
       'entity_type' => 'node',
       'field_name' => 'field_nid',
-      'label' => 'Node ID',
+      'label' => 'Issue Node ID',
       'required' => 0,
       'settings' => array(
         'text_processing' => '0',
@@ -600,7 +600,7 @@ function rocketship_feature_field_default_fields() {
   t('Body');
   t('Enter a comma-separated list of words to describe your content.');
   t('Image');
-  t('Node ID');
+  t('Issue Node ID');
   t('Tag Vocab');
   t('Tags');
   t('Upload an image to go with this article.');
