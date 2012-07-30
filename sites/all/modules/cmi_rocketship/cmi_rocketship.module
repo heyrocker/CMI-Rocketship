@@ -143,3 +143,166 @@ function cmi_rocketship_views_default_views() {
   return $views;
 }
 
+/**
+ * Implements hook_block_info().
+ */
+function cmi_rocketship_block_info() {
+  $blocks['tag_cloud'] = array(
+    'info' => t('Contributors'),
+    // DRUPAL_CACHE_PER_ROLE will be assumed.
+  );
+  
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function cmi_rocketship_block_view($delta = '') {
+  // This example comes from node.module. Note that you can also return a
+  // renderable array rather than rendered HTML for 'content'.
+  $block = array();
+
+  switch ($delta) {
+    case 'tag_cloud':
+      $block['subject'] = t('Thanks to');
+      $block['content'] = _cmi_rocketship_get_tag_cloud();
+      break;
+  }
+  return $block;
+}
+
+function _cmi_rocketship_get_tag_cloud() {
+  // Styling and some usabiltiy improvement JS included inline. This is indeed
+  // very ugly but is quickly accessible for development and can be refactored
+  // later.
+  $output = <<<STYLE
+<style>
+  .rocketship-issues table {
+    width: 100%;
+  }
+  .rocketship-issues table tr.odd {
+    background-color: #FFFFFF;
+  }
+  .rocketship-issues table tr td {
+    vertical-align: top;
+    width: 33%;
+  }
+  .rocketship-node {
+    margin-bottom: 1em;
+    border-radius: 5px;
+    padding: 3px 5px 3px 8px;
+    -moz-box-shadow:0px 0px 6px rgba(0,0,0,0.4);
+    -webkit-box-shadow:0px 0px 6px rgba(0,0,0,0.4);
+    border-left-width: 8px;
+    border-left-color: transparent;
+    border-left-style: solid;
+    border-left-color: #F5F5F5;
+  }
+  .rocketship-node a {
+    font-weight: bold;
+  }
+  .rocketship-focus {
+    border-left-color: #336699;
+  }
+  .rocketship-major {
+    border-left-color: #FF9900;
+  }
+  .rocketship-critical {
+    border-left-color: #FF0000;
+  }
+  .rocketship-term {
+    background-color: #F5F5F5;
+    margin: 2px 6px 2px 0;
+    display: inline-block;
+    border-radius: 3px;
+    font-size: 0.8em;
+    padding: 1px 3px;
+  }
+  .rocketship-needs-tests {
+    font-weight: bold;
+  }
+  .rocketship-legend {
+    float: right;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 0.8em;
+    margin-top: 0.2em;
+  }
+  .rocketship-legend div {
+    display: inline-block;
+    margin-left: 2px;
+  }
+  .rocketship-node .assigned {
+    background-color: #F5F5F5;
+    margin: 3px -5px 3px -8px;
+    padding: 1px 8px;
+    border-top: 1px dotted #DDDDDD;
+  }
+  .rocketship-cloud-wrapper {
+    border-bottom: 1px solid #2d2d2d;
+    border-top: 1px solid #2d2d2d;
+    margin-bottom: 2em;
+  }
+  .rocketship-cloud-wrapper p {
+    font-size: 0.8em;
+    margin-top: 1.3em;
+    font-style: italic;
+  }
+  .rocketship-cloud {
+    line-height: 1.3em;
+    text-align: justify;
+  }
+  .rocketship-cloud-1 {
+    font-size: 0.8em;
+  }
+  .rocketship-cloud-2 {
+    font-size: 1em;
+  }
+  .rocketship-cloud-3 {
+    font-size: 1.4em;
+  }
+  .rocketship-cloud-4 {
+    font-size: 1.6em;
+  }
+  .rocketship-cloud-5 {
+    font-size: 1.8em;
+  }
+  .rocketship-cloud-6 {
+    font-size: 2em;
+  }
+  .rocketship-cloud-recent a {
+    font-weight: bold;
+  }
+</style>
+STYLE;
+
+  $participant_stats = variable_get('rocketship_participant_stats', array());
+  $participant_uids = variable_get('rocketship_participant_uids', array());
+  $participant_recent = variable_get('rocketship_participant_recent', array());
+
+  // Remove lead user and some users to avoid skewing the stats.
+  unset($participant_stats[ROCKETSHIP_LEAD_USER]);
+  unset($participant_stats['System Message']);
+  unset($participant_stats['Abandoned Projects']);
+
+  $usercloud = array();
+  $max = max(array_values($participant_stats));
+  $steps = array(1, 2, 3, 5, 7, 10);
+  foreach ($steps as $i => $step) {
+    foreach ($participant_stats as $name => $count) {
+      if (($step == 10) || ($count <= $step * ($max/10))) {
+        $class = 'rocketship-cloud-' . ($i+1);
+        if (in_array($participant_uids[$name], $participant_recent)) {
+          $class .= ' rocketship-cloud-recent';
+        }
+        $usercloud[$name] = '<span class="' . $class . '"><a href="http://drupal.org/user/' . $participant_uids[$name] . '">' . check_plain($name) . '</a></span>';
+        unset($participant_stats[$name]);
+      }
+    }
+  }
+  // Sort by username in a case insensitive fashion.
+  uksort($usercloud, "strnatcasecmp");
+  $note = '<p>' . t('Based on participation in @tag issues (font size) using a quasi-logarithmic scale and on recent activity (boldness). Excludes the initiative lead, @lead.', array('@tag' => ROCKETSHIP_MASTER_TAG, '@lead' => ROCKETSHIP_LEAD_USER)) . '</p>';
+  $output .= '</h3>' . '<div class="rocketship-cloud">' . join(' ', $usercloud) . '</div>' . $note . '</div>';
+  return $output;  
+}
