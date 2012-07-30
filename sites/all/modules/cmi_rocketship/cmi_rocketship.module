@@ -149,7 +149,10 @@ function cmi_rocketship_views_default_views() {
 function cmi_rocketship_block_info() {
   $blocks['tag_cloud'] = array(
     'info' => t('Contributors'),
-    // DRUPAL_CACHE_PER_ROLE will be assumed.
+  );
+
+  $blocks['tag_cloud'] = array(
+    'info' => t('Contributors'),
   );
   
   return $blocks;
@@ -159,8 +162,6 @@ function cmi_rocketship_block_info() {
  * Implements hook_block_view().
  */
 function cmi_rocketship_block_view($delta = '') {
-  // This example comes from node.module. Note that you can also return a
-  // renderable array rather than rendered HTML for 'content'.
   $block = array();
 
   switch ($delta) {
