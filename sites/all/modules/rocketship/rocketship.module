@@ -13,7 +13,7 @@ define('ROCKETSHIP_MASTER_TAG', 'Configuration%20system');
 /**
  * Lead username. Skipped when computing contributors.
  */
-define('ROCKETSHIP_LEAD_USER', 'Greg Dunlap');
+define('ROCKETSHIP_LEAD_USER', 'heyrocker');
 
 /**
  * Local node type for storing the cached issues.
