@@ -151,8 +151,8 @@ function cmi_rocketship_block_info() {
     'info' => t('Contributors'),
   );
 
-  $blocks['tag_cloud'] = array(
-    'info' => t('Contributors'),
+  $blocks['resources'] = array(
+    'info' => t('Initiative Resources'),
   );
   
   return $blocks;
@@ -305,4 +305,13 @@ STYLE;
   $block['subject'] = t('Thanks to');
   $block['content'] = $output;
   return $block;  
+}
+
+function cmi_rocketship_block_resources_view() {
+  $block = array();
+  $content = '';
+  
+  $block['subject'] = t('CMI Resources');
+  $block['content'] = $output;
+  return $block;    
 }
