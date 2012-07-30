@@ -162,18 +162,14 @@ function cmi_rocketship_block_info() {
  * Implements hook_block_view().
  */
 function cmi_rocketship_block_view($delta = '') {
-  $block = array();
-
-  switch ($delta) {
-    case 'tag_cloud':
-      $block['subject'] = t('Thanks to');
-      $block['content'] = _cmi_rocketship_get_tag_cloud();
-      break;
+  $function = 'cmi_rocketship_block_' . $delta . '_view';
+  if (function_exists($function)) {
+    return call_user_func_array($function, array());
   }
-  return $block;
+  return array();
 }
 
-function _cmi_rocketship_get_tag_cloud() {
+function cmi_rocketship_block_tag_cloud_view() {
   // Styling and some usabiltiy improvement JS included inline. This is indeed
   // very ugly but is quickly accessible for development and can be refactored
   // later.
@@ -305,5 +301,8 @@ STYLE;
   uksort($usercloud, "strnatcasecmp");
   $note = '<p>' . t('Based on participation in @tag issues (font size) using a quasi-logarithmic scale and on recent activity (boldness). Excludes the initiative lead, @lead.', array('@tag' => ROCKETSHIP_MASTER_TAG, '@lead' => ROCKETSHIP_LEAD_USER)) . '</p>';
   $output .= '</h3>' . '<div class="rocketship-cloud">' . join(' ', $usercloud) . '</div>' . $note . '</div>';
-  return $output;  
+ 
+  $block['subject'] = t('Thanks to');
+  $block['content'] = $output;
+  return $block;  
 }
