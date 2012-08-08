@@ -147,6 +147,10 @@ function cmi_rocketship_views_default_views() {
  * Implements hook_block_info().
  */
 function cmi_rocketship_block_info() {
+  $blocks['chipin'] = array(
+    'info' => t('ChipIn'),
+  );
+
   $blocks['tag_cloud'] = array(
     'info' => t('Contributors'),
   );
@@ -346,4 +350,12 @@ function cmi_rocketship_block_sponsors_view() {
   $content .= '<div><img src="sites/default/files/nodeone_logo.png" alt="NodeOne"></div>';
   $block['content'] = $content;
   return $block;    
+}
+
+function cmi_rocketship_block_chipin_view() {
+  $block = array();
+  $block['subject'] = t('Contribute');
+  $output = '<object width="250" height="250"><param name="movie" value="http://widget.chipin.com/widget/id/bc9304cd89370950"></param><param name="allowScriptAccess" value="always"></param><param name="wmode" value="transparent"></param><param name="event_title" value="Drupal 8 Configuration Management Initiative"></param><param name="color_scheme" value="gray"></param><embed src="http://widget.chipin.com/widget/id/bc9304cd89370950" flashVars="event_title=Sponsor%20CMI&color_scheme=gray" type="application/x-shockwave-flash" allowScriptAccess="always" wmode="transparent" width="250" height="250"></embed></object>';
+  $block['content'] = $output;
+  return $block;  
 }
