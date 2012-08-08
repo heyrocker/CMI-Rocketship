@@ -88,6 +88,18 @@ $handler->display->display_options['filters']['field_assigned_value']['expose'][
 $handler->display->display_options['filters']['field_assigned_value']['expose']['identifier'] = 'field_assigned_value';
 $handler->display->display_options['filters']['field_assigned_value']['expose']['required'] = 0;
 $handler->display->display_options['filters']['field_assigned_value']['expose']['multiple'] = FALSE;
+/* Filter criterion: Content: Status (field_status) */
+$handler->display->display_options['filters']['field_status_value']['id'] = 'field_status_value';
+$handler->display->display_options['filters']['field_status_value']['table'] = 'field_data_field_status';
+$handler->display->display_options['filters']['field_status_value']['field'] = 'field_status_value';
+$handler->display->display_options['filters']['field_status_value']['exposed'] = TRUE;
+$handler->display->display_options['filters']['field_status_value']['expose']['operator_id'] = 'field_status_value_op';
+$handler->display->display_options['filters']['field_status_value']['expose']['label'] = 'Status';
+$handler->display->display_options['filters']['field_status_value']['expose']['use_operator'] = 1;
+$handler->display->display_options['filters']['field_status_value']['expose']['operator'] = 'field_status_value_op';
+$handler->display->display_options['filters']['field_status_value']['expose']['identifier'] = 'field_status_value';
+$handler->display->display_options['filters']['field_status_value']['expose']['required'] = 0;
+$handler->display->display_options['filters']['field_status_value']['expose']['multiple'] = FALSE;
 
 /* Display: Page */
 $handler = $view->new_display('page', 'Page', 'page');
