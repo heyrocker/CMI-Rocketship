@@ -79,7 +79,7 @@ function rocketship_launch_form_submit() {
  */
 function rocketship_parse_all() {
   // Grab the first page of the listings of issues for this tag.
-  $issue_page = 'http://drupal.org/project/issues/search/drupal?status[0]=1&status[1]=13&status[2]=8&issue_tags=' . ROCKETSHIP_MASTER_TAG;
+  $issue_page = 'http://drupal.org/project/issues/search/drupal?issue_tags=' . ROCKETSHIP_MASTER_TAG;
   $page_output = drupal_http_request($issue_page);
   if ($page_output->code == 200 && !empty($page_output->data)) {
 
