@@ -21,6 +21,14 @@ $handler->display->display_options['pager']['type'] = 'some';
 $handler->display->display_options['pager']['options']['items_per_page'] = '5';
 $handler->display->display_options['style_plugin'] = 'default';
 $handler->display->display_options['row_plugin'] = 'fields';
+/* No results behavior: Global: Text area */
+$handler->display->display_options['empty']['area']['id'] = 'area';
+$handler->display->display_options['empty']['area']['table'] = 'views';
+$handler->display->display_options['empty']['area']['field'] = 'area';
+$handler->display->display_options['empty']['area']['empty'] = FALSE;
+$handler->display->display_options['empty']['area']['content'] = 'No items have been flagged for the current sprint';
+$handler->display->display_options['empty']['area']['format'] = 'filtered_html';
+$handler->display->display_options['empty']['area']['tokenize'] = 0;
 /* Relationship: Flags: current_sprint */
 $handler->display->display_options['relationships']['flag_content_rel']['id'] = 'flag_content_rel';
 $handler->display->display_options['relationships']['flag_content_rel']['table'] = 'node';
