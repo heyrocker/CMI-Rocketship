@@ -77,7 +77,7 @@ function rocketship_feature_default_page_manager_pages() {
       'build_mode' => 'full',
       'link_node_title' => 0,
       'override_title' => 1,
-      'override_title_text' => 'No Title',
+      'override_title_text' => '',
     );
     $pane->cache = array();
     $pane->style = array(
