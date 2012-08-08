@@ -346,8 +346,8 @@ function cmi_rocketship_block_sponsors_view() {
   $content = '';
   
   $block['subject'] = t('CMI Sponsors');
-  $content .= '<div><img src="sites/default/files/pantheon_logo.png" alt="Pantheon"></div>';
-  $content .= '<div><img src="sites/default/files/nodeone_logo.png" alt="NodeOne"></div>';
+  $content .= '<div><img src="/sites/default/files/pantheon_logo.png" alt="Pantheon"></div>';
+  $content .= '<div><img src="/sites/default/files/nodeone_logo.png" alt="NodeOne"></div>';
   $block['content'] = $content;
   return $block;    
 }
