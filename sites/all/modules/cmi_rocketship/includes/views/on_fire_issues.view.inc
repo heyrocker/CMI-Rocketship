@@ -96,6 +96,18 @@ $handler->display->display_options['filters']['type']['field'] = 'type';
 $handler->display->display_options['filters']['type']['value'] = array(
   'issue' => 'issue',
 );
+/* Filter criterion: Content: Status (field_status) */
+$handler->display->display_options['filters']['field_status_value']['id'] = 'field_status_value';
+$handler->display->display_options['filters']['field_status_value']['table'] = 'field_data_field_status';
+$handler->display->display_options['filters']['field_status_value']['field'] = 'field_status_value';
+$handler->display->display_options['filters']['field_status_value']['operator'] = 'not_starts';
+$handler->display->display_options['filters']['field_status_value']['value'] = 'closed';
+/* Filter criterion: Content: Status (field_status) */
+$handler->display->display_options['filters']['field_status_value_1']['id'] = 'field_status_value_1';
+$handler->display->display_options['filters']['field_status_value_1']['table'] = 'field_data_field_status';
+$handler->display->display_options['filters']['field_status_value_1']['field'] = 'field_status_value';
+$handler->display->display_options['filters']['field_status_value_1']['operator'] = '!=';
+$handler->display->display_options['filters']['field_status_value_1']['value'] = 'postponed';
 
 /* Display: Block */
 $handler = $view->new_display('block', 'Block', 'block');
