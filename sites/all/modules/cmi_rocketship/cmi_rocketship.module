@@ -155,6 +155,10 @@ function cmi_rocketship_block_info() {
     'info' => t('Initiative Resources'),
   );
   
+  $blocks['sponsors'] = array(
+    'info' => t('Initiative Sponsors'),
+  );
+  
   return $blocks;
 }
 
@@ -162,6 +166,8 @@ function cmi_rocketship_block_info() {
  * Implements hook_block_view().
  */
 function cmi_rocketship_block_view($delta = '') {
+  // Separate blocks into their own pseudo-hooks, which makes the code
+  //
   $function = 'cmi_rocketship_block_' . $delta . '_view';
   if (function_exists($function)) {
     return call_user_func_array($function, array());
@@ -169,6 +175,11 @@ function cmi_rocketship_block_view($delta = '') {
   return array();
 }
 
+/**
+ * Implements hook_block_DELTA_view().
+ *
+ * Return the tag cloud of contributors.
+ */
 function cmi_rocketship_block_tag_cloud_view() {
   // Styling and some usabiltiy improvement JS included inline. This is indeed
   // very ugly but is quickly accessible for development and can be refactored
@@ -307,11 +318,32 @@ STYLE;
   return $block;  
 }
 
+/**
+ * Implements hook_block_DELTA_view().
+ *
+ * Display a list of resources.
+ */
 function cmi_rocketship_block_resources_view() {
   $block = array();
   $content = '';
   
   $block['subject'] = t('CMI Resources');
   $block['content'] = $output;
+  return $block;    
+}
+
+/**
+ * Implements hook_block_DELTA_view().
+ *
+ * Display a list of sponsors.
+ */
+function cmi_rocketship_block_sponsors_view() {
+  $block = array();
+  $content = '';
+  
+  $block['subject'] = t('CMI Sponsors');
+  $content .= '<div><img src="sites/default/files/pantheon_logo.png" alt="Pantheon"></div>';
+  $content .= '<div><img src="sites/default/files/nodeone_logo.png" alt="NodeOne"></div>';
+  $block['content'] = $content;
   return $block;    
 }
