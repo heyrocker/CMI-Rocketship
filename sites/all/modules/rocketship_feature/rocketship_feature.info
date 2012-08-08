@@ -22,6 +22,7 @@ features[field][] = node-issue-body
 features[field][] = node-issue-field_assigned
 features[field][] = node-issue-field_issue_tags
 features[field][] = node-issue-field_nid
+features[field][] = node-issue-field_status
 features[field][] = node-page-body
 features[node][] = article
 features[node][] = issue

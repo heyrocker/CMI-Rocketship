@@ -100,6 +100,7 @@ function rocketship_parse_all() {
         $page_output = drupal_http_request($issue_page . '&page='. $page_num);
         if ($page_output->code == 200 && !empty($page_output->data)) {
           rocketship_parse_issue_page($page_output->data);
+          die();
         }
       }
     }
@@ -213,7 +214,7 @@ function rocketship_parse_issue_page(&$issue_page_content) {
         }
         if (preg_match('!<td>Status:</td><td>(.*)</td>!', $issue_node->data, $tag)) {
           // "Decode" for "reviewed & tested by the community".
-          $tags[] = str_replace('&amp;', '&', $tag[1]);
+          $node->field_status['und'][0]['value'] = str_replace('&amp;', '&', $tag[1]);
         }
         if (preg_match('!<td>Issue tags:</td><td>(.*)</td>!', $issue_node->data, $tag)) {
           if (preg_match_all('!>([^<]+)</a>!', $tag[1], $more_tags)) {

@@ -126,6 +126,9 @@ function rocketship_feature_strongarm() {
         'title' => array(
           'weight' => '0',
         ),
+        'flag' => array(
+          'weight' => '10',
+        ),
       ),
       'display' => array(),
     ),
@@ -248,11 +251,11 @@ function rocketship_feature_strongarm() {
   $strongarm->name = 'theme_sky_settings';
   $strongarm->value = array(
     'toggle_logo' => 0,
-    'toggle_name' => 1,
+    'toggle_name' => 0,
     'toggle_slogan' => 0,
-    'toggle_node_user_picture' => 1,
-    'toggle_comment_user_picture' => 1,
-    'toggle_comment_user_verification' => 1,
+    'toggle_node_user_picture' => 0,
+    'toggle_comment_user_picture' => 0,
+    'toggle_comment_user_verification' => 0,
     'toggle_favicon' => 1,
     'default_logo' => 0,
     'logo_path' => '',
@@ -265,7 +268,7 @@ function rocketship_feature_strongarm() {
     'bigscreen_sidebar_first' => '180',
     'bigscreen_sidebar_second' => '180',
     'bigscreen_page_unit' => 'px',
-    'bigscreen_page_width' => '960',
+    'bigscreen_page_width' => '1024',
     'bigscreen_set_max_width' => 0,
     'bigscreen_max_width_unit' => 'px',
     'bigscreen_max_width' => '1260',
@@ -353,7 +356,7 @@ function rocketship_feature_strongarm() {
     'image_caption_teaser' => 0,
     'image_caption_full' => 0,
     'menu_bullets' => 'mb-dd',
-    'at__active_tab' => 'edit-corners',
+    'at__active_tab' => 'edit-bigscreen',
     'scheme' => 'default',
     'palette' => array(
       'base' => '#efedea',
