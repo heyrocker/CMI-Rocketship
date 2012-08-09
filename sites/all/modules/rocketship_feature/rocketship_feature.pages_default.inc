@@ -92,17 +92,30 @@ function rocketship_feature_default_page_manager_pages() {
     $pane = new stdClass();
     $pane->pid = 'new-2';
     $pane->panel = 'sidebar';
-    $pane->type = 'block';
-    $pane->subtype = 'cmi_rocketship-chipin';
+    $pane->type = 'views';
+    $pane->subtype = 'featured_sponsor';
     $pane->shown = TRUE;
     $pane->access = array();
     $pane->configuration = array(
+      'override_pager_settings' => 0,
+      'use_pager' => 0,
+      'nodes_per_page' => '1',
+      'pager_id' => '0',
+      'offset' => '0',
+      'more_link' => 0,
+      'feed_icons' => 0,
+      'panel_args' => 0,
+      'link_to_view' => 0,
+      'args' => '',
+      'url' => '',
+      'display' => 'default',
       'override_title' => 0,
       'override_title_text' => '',
     );
     $pane->cache = array();
     $pane->style = array(
       'settings' => NULL,
+      'style' => 'block',
     );
     $pane->css = array();
     $pane->extras = array();
@@ -114,7 +127,7 @@ function rocketship_feature_default_page_manager_pages() {
     $pane->pid = 'new-3';
     $pane->panel = 'sidebar';
     $pane->type = 'block';
-    $pane->subtype = 'cmi_rocketship-sponsors';
+    $pane->subtype = 'cmi_rocketship-chipin';
     $pane->shown = TRUE;
     $pane->access = array();
     $pane->configuration = array(
@@ -124,6 +137,7 @@ function rocketship_feature_default_page_manager_pages() {
     $pane->cache = array();
     $pane->style = array(
       'settings' => NULL,
+      'style' => 'block',
     );
     $pane->css = array();
     $pane->extras = array();
